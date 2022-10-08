@@ -76,16 +76,32 @@ void UGoKartMovementReplicator::ClientTick(float DeltaTime)
 	ClientTimeSinceUpdate += DeltaTime;
 
 	// unreal's kinda_small_number is 1.e-4
+	// This number is too small, we'll ignore it to avoid potential floating point issues
 	if (ClientTimeBetweenLastUpdates < KINDA_SMALL_NUMBER)
 		return;
 
+	if (MovementComponent == nullptr)
+		return;
+
 	float LerpRatio = ClientTimeSinceUpdate / ClientTimeBetweenLastUpdates;
+	float VelocityToDerivative = ClientTimeBetweenLastUpdates * 100; // Unreal units conversion (x100)
 
 	// Interpolate Location
 	FVector StartLocation = ClientStartTransform.GetLocation();
+	FVector StartDerivative = ClientStartVelocity * VelocityToDerivative;
+
 	FVector TargetLocation = ServerState.Transform.GetLocation();
-	FVector NewLocation = FMath::LerpStable(StartLocation, TargetLocation, LerpRatio);
+	FVector TargetDerivative = ServerState.Velocity * VelocityToDerivative;
+
+	FVector NewLocation = FMath::CubicInterp(
+		StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
 	GetOwner()->SetActorLocation(NewLocation);
+
+	// Get the slope/derivative at the point on the cubic spline
+	FVector NewDerivative = FMath::CubicInterpDerivative(
+		StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+	FVector NewVelocity = NewDerivative / VelocityToDerivative;
+	MovementComponent->SetVelocity(NewVelocity);
 
 	// Interpolate Rotation
 	FQuat StartRotation = ClientStartTransform.GetRotation();
@@ -119,9 +135,12 @@ void UGoKartMovementReplicator::OnRep_ServerState()
 
 void UGoKartMovementReplicator::SimulatedProxy_OnRep_ServerState()
 {
+	if (MovementComponent == nullptr)
+		return;
 	ClientTimeBetweenLastUpdates = ClientTimeSinceUpdate;
 	ClientTimeSinceUpdate = 0;
 	ClientStartTransform = GetOwner()->GetActorTransform();
+	ClientStartVelocity = MovementComponent->GetVelocity();
 }
 
 void UGoKartMovementReplicator::AutonomousProxy_OnRep_ServerState()
