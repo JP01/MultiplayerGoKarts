@@ -7,8 +7,9 @@
 // Sets default values for this component's properties
 UGoKartMovementReplicator::UGoKartMovementReplicator()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
+	// Set this component to be initialized when the game starts, and to be
+	// ticked every frame.  You can turn these features off to improve
+	// performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
 	SetIsReplicated(true);
@@ -19,11 +20,13 @@ void UGoKartMovementReplicator::BeginPlay()
 {
 	Super::BeginPlay();
 
-	MovementComponent = GetOwner()->FindComponentByClass<UGoKartMovementComponent>();
+	MovementComponent =
+		GetOwner()->FindComponentByClass<UGoKartMovementComponent>();
 }
 
 // Called every frame
-void UGoKartMovementReplicator::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UGoKartMovementReplicator::TickComponent(float DeltaTime,
+	ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -50,7 +53,8 @@ void UGoKartMovementReplicator::TickComponent(float DeltaTime, ELevelTick TickTy
 	}
 }
 
-void UGoKartMovementReplicator::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
+void UGoKartMovementReplicator::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UGoKartMovementReplicator, ServerState);
@@ -60,7 +64,7 @@ void UGoKartMovementReplicator::ClearAcknowledgedMoves(FGoKartMove LastMove)
 {
 	TArray<FGoKartMove> NewMoves;
 
-	for (const FGoKartMove &Move : UnAcknowledgedMoves)
+	for (const FGoKartMove& Move : UnAcknowledgedMoves)
 	{
 		if (Move.Time > LastMove.Time)
 		{
@@ -76,7 +80,8 @@ void UGoKartMovementReplicator::ClientTick(float DeltaTime)
 	ClientTimeSinceUpdate += DeltaTime;
 
 	// unreal's kinda_small_number is 1.e-4
-	// This number is too small, we'll ignore it to avoid potential floating point issues
+	// This number is too small, we'll ignore it to avoid potential floating
+	// point issues
 	if (ClientTimeBetweenLastUpdates < KINDA_SMALL_NUMBER)
 		return;
 
@@ -84,25 +89,46 @@ void UGoKartMovementReplicator::ClientTick(float DeltaTime)
 		return;
 
 	float LerpRatio = ClientTimeSinceUpdate / ClientTimeBetweenLastUpdates;
-	float VelocityToDerivative = ClientTimeBetweenLastUpdates * 100; // Unreal units conversion (x100)
 
-	// Interpolate Location
-	FVector StartLocation = ClientStartTransform.GetLocation();
-	FVector StartDerivative = ClientStartVelocity * VelocityToDerivative;
+	FHermiteCubicSpline Spline = CreateSpline();
+	InterpolateLocation(Spline, LerpRatio);
+	InterpolateVelocity(Spline, LerpRatio);
+	InterpolateRotation(LerpRatio);
+}
 
-	FVector TargetLocation = ServerState.Transform.GetLocation();
-	FVector TargetDerivative = ServerState.Velocity * VelocityToDerivative;
+float UGoKartMovementReplicator::VelocityToDerivative() const
+{
+	return ClientTimeBetweenLastUpdates * 100; // Unreal units conversion (x100)
+}
 
-	FVector NewLocation = FMath::CubicInterp(
-		StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
+FHermiteCubicSpline UGoKartMovementReplicator::CreateSpline() const
+{
+	FHermiteCubicSpline Spline;
+	Spline.StartLocation = ClientStartTransform.GetLocation();
+	Spline.StartDerivative = ClientStartVelocity * VelocityToDerivative();
+	Spline.TargetLocation = ServerState.Transform.GetLocation();
+	Spline.TargetDerivative = ServerState.Velocity * VelocityToDerivative();
+	return Spline;
+}
+
+void UGoKartMovementReplicator::InterpolateLocation(
+	const FHermiteCubicSpline& Spline, float LerpRatio) const
+{
+	FVector NewLocation = Spline.InterpolateLocation(LerpRatio);
 	GetOwner()->SetActorLocation(NewLocation);
+}
 
+void UGoKartMovementReplicator::InterpolateVelocity(
+	const FHermiteCubicSpline& Spline, float LerpRatio) const
+{
 	// Get the slope/derivative at the point on the cubic spline
-	FVector NewDerivative = FMath::CubicInterpDerivative(
-		StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);
-	FVector NewVelocity = NewDerivative / VelocityToDerivative;
+	FVector NewDerivative = Spline.InterpolateDerivative(LerpRatio);
+	FVector NewVelocity = NewDerivative / VelocityToDerivative();
 	MovementComponent->SetVelocity(NewVelocity);
+}
 
+void UGoKartMovementReplicator::InterpolateRotation(float LerpRatio) const
+{
 	// Interpolate Rotation
 	FQuat StartRotation = ClientStartTransform.GetRotation();
 	FQuat TargetRotation = ServerState.Transform.GetRotation();
@@ -111,7 +137,7 @@ void UGoKartMovementReplicator::ClientTick(float DeltaTime)
 	GetOwner()->SetActorRotation(NewRotation);
 }
 
-void UGoKartMovementReplicator::UpdateServerState(const FGoKartMove &Move)
+void UGoKartMovementReplicator::UpdateServerState(const FGoKartMove& Move)
 {
 	ServerState.LastMove = Move;
 	ServerState.Transform = GetOwner()->GetActorTransform();
@@ -122,14 +148,14 @@ void UGoKartMovementReplicator::OnRep_ServerState()
 {
 	switch (GetOwnerRole())
 	{
-	case ROLE_AutonomousProxy:
-		AutonomousProxy_OnRep_ServerState();
-		break;
-	case ROLE_SimulatedProxy:
-		SimulatedProxy_OnRep_ServerState();
-		break;
-	default:
-		break;
+		case ROLE_AutonomousProxy:
+			AutonomousProxy_OnRep_ServerState();
+			break;
+		case ROLE_SimulatedProxy:
+			SimulatedProxy_OnRep_ServerState();
+			break;
+		default:
+			break;
 	}
 }
 
@@ -152,7 +178,7 @@ void UGoKartMovementReplicator::AutonomousProxy_OnRep_ServerState()
 
 	ClearAcknowledgedMoves(ServerState.LastMove);
 
-	for (const FGoKartMove &Move : UnAcknowledgedMoves)
+	for (const FGoKartMove& Move : UnAcknowledgedMoves)
 	{
 		MovementComponent->SimulateMove(Move);
 	}

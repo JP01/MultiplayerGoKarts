@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "CoreMinimal.h"
 #include "GoKartMovementComponent.h"
 #include "GoKartMovementReplicator.generated.h"
 
@@ -22,6 +22,22 @@ struct FGoKartState
 	FTransform Transform;
 };
 
+struct FHermiteCubicSpline
+{
+	FVector StartLocation, StartDerivative, TargetLocation, TargetDerivative;
+
+	FVector InterpolateLocation(float LerpRatio) const
+	{
+		return FMath::CubicInterp(StartLocation, StartDerivative,
+			TargetLocation, TargetDerivative, LerpRatio);
+	}
+	FVector InterpolateDerivative(float LerpRatio) const
+	{
+		return FMath::CubicInterpDerivative(StartLocation, StartDerivative,
+			TargetLocation, TargetDerivative, LerpRatio);
+	}
+};
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class KRAZYKARTS_API UGoKartMovementReplicator : public UActorComponent
 {
@@ -37,7 +53,8 @@ protected:
 
 public:
 	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+		FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
@@ -52,8 +69,15 @@ private:
 	FVector ClientStartVelocity;
 
 	void ClientTick(float DeltaTime);
+	float VelocityToDerivative() const;
+	FHermiteCubicSpline CreateSpline() const;
+	void InterpolateLocation(
+		const FHermiteCubicSpline& Spline, float LerpRatio) const;
+	void InterpolateVelocity(
+		const FHermiteCubicSpline& Spline, float LerpRatio) const;
+	void InterpolateRotation(float LerpRatio) const;
 
-	void UpdateServerState(const FGoKartMove &Move);
+	void UpdateServerState(const FGoKartMove& Move);
 
 	UFUNCTION()
 	void OnRep_ServerState();
@@ -64,5 +88,5 @@ private:
 	void Server_SendMove(FGoKartMove Move);
 
 	UPROPERTY()
-	UGoKartMovementComponent *MovementComponent;
+	UGoKartMovementComponent* MovementComponent;
 };
