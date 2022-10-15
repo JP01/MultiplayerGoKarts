@@ -6,8 +6,9 @@
 // Sets default values for this component's properties
 UGoKartMovementComponent::UGoKartMovementComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
+	// Set this component to be initialized when the game starts, and to be
+	// ticked every frame.  You can turn these features off to improve
+	// performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
 	// ...
@@ -22,20 +23,23 @@ void UGoKartMovementComponent::BeginPlay()
 }
 
 // Called every frame
-void UGoKartMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UGoKartMovementComponent::TickComponent(float DeltaTime,
+	ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (GetOwnerRole() == ROLE_AutonomousProxy || GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy)
+	if (GetOwnerRole() == ROLE_AutonomousProxy
+		|| GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy)
 	{
 		LastMove = CreateMove(DeltaTime);
 		SimulateMove(LastMove);
 	}
 }
 
-void UGoKartMovementComponent::SimulateMove(const FGoKartMove &Move)
+void UGoKartMovementComponent::SimulateMove(const FGoKartMove& Move)
 {
-	FVector Force = GetOwner()->GetActorForwardVector() * MaxDrivingForce * Move.Throttle;
+	FVector Force =
+		GetOwner()->GetActorForwardVector() * MaxDrivingForce * Move.Throttle;
 	Force += GetAirResistance();
 	Force += GetRollingResistance();
 
@@ -69,12 +73,16 @@ FVector UGoKartMovementComponent::GetRollingResistance()
 	// Convert from unreal units (cm) to SI units (m)
 	float AccelerationDueToGravity = -GetWorld()->GetGravityZ() / 100;
 	float NormalForce = Mass * AccelerationDueToGravity;
-	return -Velocity.GetSafeNormal() * RollingResistanceCoefficient * NormalForce;
+	return -Velocity.GetSafeNormal() * RollingResistanceCoefficient
+		* NormalForce;
 }
 
-void UGoKartMovementComponent::ApplyRotation(float DeltaTime, float _SteeringThrow)
+void UGoKartMovementComponent::ApplyRotation(
+	float DeltaTime, float _SteeringThrow)
 {
-	float DeltaLocation = FVector::DotProduct(GetOwner()->GetActorForwardVector(), Velocity) * DeltaTime;
+	float DeltaLocation =
+		FVector::DotProduct(GetOwner()->GetActorForwardVector(), Velocity)
+		* DeltaTime;
 	float RotationAngle = DeltaLocation / MinTurningRadius * _SteeringThrow;
 	FQuat RotationDelta(GetOwner()->GetActorUpVector(), RotationAngle);
 	Velocity = RotationDelta.RotateVector(Velocity);

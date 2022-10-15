@@ -20,6 +20,11 @@ struct FGoKartMove
 	float DeltaTime;
 	UPROPERTY()
 	float Time;
+
+	bool IsValid() const
+	{
+		return FMath::Abs(Throttle) <= 1 && FMath::Abs(SteeringThrow) <= 1;
+	}
 };
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -37,9 +42,10 @@ protected:
 
 public:
 	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+		FActorComponentTickFunction* ThisTickFunction) override;
 
-	void SimulateMove(const FGoKartMove &Move);
+	void SimulateMove(const FGoKartMove& Move);
 
 	FVector GetVelocity() { return Velocity; }
 	void SetVelocity(FVector val) { Velocity = val; }

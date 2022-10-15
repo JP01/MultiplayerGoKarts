@@ -68,6 +68,8 @@ private:
 	FTransform ClientStartTransform;
 	FVector ClientStartVelocity;
 
+	float ClientSimulatedTime;
+
 	void ClientTick(float DeltaTime);
 	float VelocityToDerivative() const;
 	FHermiteCubicSpline CreateSpline() const;
