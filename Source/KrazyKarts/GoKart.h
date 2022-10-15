@@ -6,8 +6,8 @@
 #include "GameFramework/Pawn.h"
 #include "GoKartMovementComponent.h"
 #include "GoKartMovementReplicator.h"
-#include "GoKart.generated.h"
 
+#include "GoKart.generated.h"
 
 UCLASS()
 class KRAZYKARTS_API AGoKart : public APawn
@@ -27,15 +27,16 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
+	virtual void SetupPlayerInputComponent(
+		class UInputComponent* PlayerInputComponent) override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UGoKartMovementComponent* MovementComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UGoKartMovementReplicator* MovementReplicator;
 
 private:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
-
-	UPROPERTY(VisibleAnywhere)
-	UGoKartMovementComponent *MovementComponent;
-
-	UPROPERTY(VisibleAnywhere)
-	UGoKartMovementReplicator *MovementReplicator;
 };
